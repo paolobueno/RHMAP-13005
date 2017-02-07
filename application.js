@@ -10,14 +10,17 @@ var app = express();
 
 // Note: important that this is added just before your own Routes
 app.use(mbaasExpress.fhmiddleware());
+console.log(forms);
 
-forms.getFormsAsync({}).tap(console.log)
+forms.getFormsAsync({})
+.tap(console.log.bind(console, '#getFormsAsync'))
 .then(function(forms) {
   return {
     formids: _.map(forms.forms, '_id')
   };
 })
-.then(forms.getPopulatedFormListAsync).tap(console.log)
+.then(forms.getPopulatedFormListAsync.bind(forms))
+.tap(console.log.bind(console, '#getPopulatedFormListAsync'))
 .catch(console.error);
 
 // Important that this is last!
