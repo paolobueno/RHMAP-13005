@@ -19,8 +19,27 @@ forms.getFormsAsync({})
     formids: _.map(forms.forms, '_id')
   };
 })
-.then(forms.getPopulatedFormListAsync.bind(forms))
-.tap(console.log.bind(console, '#getPopulatedFormListAsync'))
+.then(function(ids) {
+  forms.getPopulatedFormListAsync(ids)
+    .then(console.log.bind(console, '#getPopulatedFormListAsync'));
+  forms.getSubmissionsAsync(ids)
+    .then(console.log.bind(console, '#getSubmissions'));
+})
+.catch(console.error);
+
+forms.getThemeAsync({})
+.then(console.log.bind(console, '#getThemeAsync'))
+.catch(console.error);
+
+forms.getAppClientConfig({})
+.then(console.log.bind(console, '#getAppClientConfig'))
+.catch(console.error);
+
+forms.exportCSV({})
+.then(function(stream) {
+  console.log('#exportCSV');
+  stream.pipe(process.stdout);
+})
 .catch(console.error);
 
 // Important that this is last!
