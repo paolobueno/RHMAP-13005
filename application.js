@@ -4,43 +4,67 @@ var mbaasExpress = $fh.mbaasExpress();
 var Promise = require('bluebird');
 var forms = Promise.promisifyAll($fh.forms);
 var _ = require('lodash');
+var streamToString = require('stream-to-string');
 
 // list the endpoints which you want to make securable here
 var app = express();
 
 // Note: important that this is added just before your own Routes
 app.use(mbaasExpress.fhmiddleware());
-console.log(forms);
 
-forms.getFormsAsync({})
-.tap(console.log.bind(console, '#getFormsAsync'))
-.then(function(forms) {
-  return {
-    formids: _.map(forms.forms, '_id')
+function wrapper(property, fn) {
+  return function(req, res, next) {
+    res.payload = res.payload || {};
+    fn().then(function(result) {
+      res.payload[property] = result;
+      next();
+    }).catch(next);
   };
-})
-.then(function(ids) {
-  forms.getPopulatedFormListAsync(ids)
-    .then(console.log.bind(console, '#getPopulatedFormListAsync'));
-  forms.getSubmissionsAsync(ids)
-    .then(console.log.bind(console, '#getSubmissions'));
-})
-.catch(console.error);
+}
 
-forms.getThemeAsync({})
-.then(console.log.bind(console, '#getThemeAsync'))
-.catch(console.error);
+function getFormsTest() {
+  return forms.getFormsAsync({})
+  .then(function(forms) {
+    return { formids: _.map(forms.forms, '_id') };
+  })
+  .then(function(ids) {
+    return Promise.join(
+      forms.getPopulatedFormListAsync(ids),
+      forms.getSubmissionsAsync(ids),
+      function(formList, submissions) {
+        return {
+          formIds: ids,
+          formList: formList,
+          submissions: submissions
+        };
+      });
+  });
+}
 
-forms.getAppClientConfig({})
-.then(console.log.bind(console, '#getAppClientConfig'))
-.catch(console.error);
+function getThemeTest() {
+  return forms.getThemeAsync({});
+}
 
-forms.exportCSV({})
-.then(function(stream) {
-  console.log('#exportCSV');
-  stream.pipe(process.stdout);
-})
-.catch(console.error);
+function getAppClientTest() {
+  return forms.getAppClientConfig({});
+}
+
+function exportCSVTest() {
+  return forms.exportCSVAsync({})
+  .then(streamToString);
+}
+
+
+
+app.get('/test',
+  wrapper('forms', getFormsTest),
+  wrapper('theme', getThemeTest),
+  wrapper('appClient', getAppClientTest),
+  wrapper('csv', exportCSVTest),
+  function(req, res) {
+    res.json(res.payload);
+  }
+);
 
 // Important that this is last!
 app.use(mbaasExpress.errorHandler());
